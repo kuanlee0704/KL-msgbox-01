@@ -1,0 +1,59 @@
+name: Build APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.9
+      # 簽章必須每次都一樣, 手機才能「直接覆蓋安裝」而不必先解除安裝 (解除安裝會清掉所有設定)。
+      # 這一步確保: 用的就是專案內固定的金鑰, 缺檔就從文字備份還原, 指紋不符就讓打包直接失敗。
+      - name: Check signing key
+        working-directory: android/app
+        run: |
+          if [ ! -s debug.keystore ]; then
+            if [ -s debug.keystore.b64 ]; then
+              base64 -d debug.keystore.b64 > debug.keystore
+              echo "debug.keystore 不在 repo, 已從 debug.keystore.b64 還原"
+            else
+              echo "::error::找不到 android/app/debug.keystore (也沒有 debug.keystore.b64)。沒有固定金鑰就無法覆蓋安裝, 請把這兩個檔案一起放進 repo。"
+              exit 1
+            fi
+          fi
+          ACTUAL=$(keytool -list -v -keystore debug.keystore -storepass android 2>/dev/null | grep "SHA256:" | head -1 | awk '{print $2}')
+          EXPECT=$(cat signing.sha256 | tr -d '[:space:]')
+          echo "金鑰指紋 (SHA-256): $ACTUAL"
+          if [ "$ACTUAL" != "$EXPECT" ]; then
+            echo "::error::debug.keystore 的指紋 ($ACTUAL) 和 signing.sha256 ($EXPECT) 不同。金鑰被換掉或損壞, 這樣打出來的 APK 無法覆蓋舊版。"
+            exit 1
+          fi
+      - name: Build debug APK
+        working-directory: android
+        run: gradle --no-daemon assembleDebug
+      - name: Show APK signature
+        run: |
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          AS=$(ls "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1)
+          {
+            echo "### APK 簽章 (每次打包都必須相同, 手機才能覆蓋安裝)"
+            if [ -n "$AS" ]; then
+              "$AS" verify --print-certs "$APK" | grep -E "SHA-256|Signer #1 certificate DN" | sed 's/^/    /'
+            else
+              echo "找不到 apksigner, 略過 (金鑰指紋已在上一步驗證)"
+            fi
+            echo
+            echo "App 的「設定 → 關於」會顯示已安裝版本的簽章指紋前 8 個位元組; 和這裡的 SHA-256 開頭一致就能直接覆蓋安裝。"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MsgBox-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
