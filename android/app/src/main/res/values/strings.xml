@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">手機訊息</string>
+    <string name="acc_desc">讀取你在設定裡勾選的聊天 App 的畫面文字, 只記錄你自己送出的訊息, 讓對話畫面有來有往。不讀輸入框與密碼欄, 資料只存在這支手機、沒有任何網路功能。</string>
 </resources>

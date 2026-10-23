@@ -10,8 +10,8 @@ android {
         applicationId = "tw.msgbox"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 7
+        versionName = "1.5.0"
     }
     // 固定的除錯簽章: 每次打包出來的 APK 簽章相同, 才能直接「覆蓋安裝」並保留資料
     signingConfigs {

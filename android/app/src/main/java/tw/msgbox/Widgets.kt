@@ -22,7 +22,7 @@ object Widgets {
             val ids = mgr.getAppWidgetIds(ComponentName(app, MsgWidget::class.java))
             if (ids.isEmpty()) return
             val unread = MsgDb.unread(app)
-            val top = MsgDb.query(app, "", null, false, 4)
+            val top = MsgDb.query(app, "", null, false, 12).filter { !it.mine }.take(4)
             val key = unread.toString() + "|" + top.joinToString("|") { it.id.toString() + (if (it.read) "r" else "u") }
             if (!force && key == lastKey) return
             lastKey = key

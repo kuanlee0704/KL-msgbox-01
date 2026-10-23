@@ -33,6 +33,22 @@ object MsgCapture {
         return if (r.isEmpty()) s.trim() else r
     }
 
+    /**
+     * 決定這則通知屬於哪個對話。
+     * 一般: 用通知的「對話標題」, 沒有就用標題。
+     * 特例 (例如 Instagram): 對話標題其實是「自己的帳號」(如 3km.day), 標題長這樣「3km.day: Eason Wang」,
+     * 這時真正的對話對象是冒號後面的人, 以他為對話, 才分得出不同人。
+     */
+    internal fun convOf(convTitle: String, title: String): String {
+        if (convTitle.isEmpty()) return cleanConv(title)
+        val pre = "$convTitle: "
+        if (title.length > pre.length && title.startsWith(pre)) {
+            val peer = title.substring(pre.length).trim()
+            if (peer.isNotEmpty()) return cleanConv(peer)
+        }
+        return cleanConv(convTitle)
+    }
+
     private fun key(sbn: StatusBarNotification) = sbn.packageName + ":" + sbn.id + ":" + (sbn.tag ?: "")
 
     private fun label(ctx: Context, pkg: String): String = try {
@@ -66,7 +82,8 @@ object MsgCapture {
         val convTitle = (ex.getCharSequence("android.conversationTitle") ?: "").toString().trim()
         val template = ex.getString(Notification.EXTRA_TEMPLATE) ?: ""
         val social = n.category == Notification.CATEGORY_MESSAGE || template.contains("MessagingStyle") || pkg in SOCIAL
-        val conv = cleanConv(if (convTitle.isNotEmpty()) convTitle else title).take(80)
+        val conv = MsgDb.normConv(convOf(convTitle, title).take(80), title.take(120))
+        if (MsgDb.isIgnored(ctx, pkg, conv)) return      // 使用者已忽略這個來源: 不收錄
         MsgDb.insert(ctx, pkg, label(ctx, pkg).take(24), title.take(120), text.take(2000), k, conv, social)
         Widgets.updateAll(ctx)
     }

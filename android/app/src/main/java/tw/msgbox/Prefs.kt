@@ -27,6 +27,18 @@ object Prefs {
     fun msgAllow(c: Context): Set<String> = getSet(c, "msg_allow")
     fun setMsgAllow(c: Context, v: Collection<String>) = putSet(c, "msg_allow", v)
 
+    /** 聊天畫面擷取 (無障礙服務, 實驗性): 預設關閉; 只讀有勾選的 App */
+    fun chatOn(c: Context): Boolean = sp(c).getBoolean("chat_on", false)
+    fun setChatOn(c: Context, v: Boolean) { sp(c).edit().putBoolean("chat_on", v).apply() }
+    /** 聊天畫面擷取: 同時記錄對方在畫面上的訊息 (開著聊天時不會有通知, 只能從畫面讀); 預設開啟 */
+    fun chatBoth(c: Context): Boolean = sp(c).getBoolean("chat_both", true)
+    fun setChatBoth(c: Context, v: Boolean) { sp(c).edit().putBoolean("chat_both", v).apply() }
+    /** 我在聊天 App 裡顯示的名字 (逗號分隔, 如 Kilo), 用來辨識畫面上哪些是我送出的; 空 = 自動判斷 */
+    fun chatSelf(c: Context): String = sp(c).getString("chat_self", "") ?: ""
+    fun setChatSelf(c: Context, v: String) { sp(c).edit().putString("chat_self", v.trim()).apply() }
+    fun chatApps(c: Context): Set<String> = getSet(c, "chat_apps")
+    fun setChatApps(c: Context, v: Collection<String>) = putSet(c, "chat_apps", v)
+
     private fun getSet(c: Context, k: String): Set<String> = try {
         val a = org.json.JSONArray(sp(c).getString(k, "[]"))
         HashSet<String>().also { s -> for (i in 0 until a.length()) s.add(a.optString(i)) }
